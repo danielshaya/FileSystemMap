@@ -143,7 +143,7 @@ public class FileSystemMapTest {
             System.out.println(e);
             events.add(e);
         };
-        map.registerForEvents(fpmEventConsumer);
+        map.registerForEvents(System.out::println);
 
         map.put("one", "one");
         map.put("one", "two");
