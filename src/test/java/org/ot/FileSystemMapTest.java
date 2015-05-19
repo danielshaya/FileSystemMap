@@ -143,6 +143,7 @@ public class FileSystemMapTest {
             System.out.println(e);
             events.add(e);
         };
+
         map.registerForEvents(System.out::println);
 
         map.put("one", "one");
