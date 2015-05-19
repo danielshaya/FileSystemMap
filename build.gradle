@@ -19,3 +19,8 @@ test {
 dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.11'
 }
+
+jar {
+    if(hasProperty("teamcity"))
+       version += '.' + teamcity['build.number']
+}
