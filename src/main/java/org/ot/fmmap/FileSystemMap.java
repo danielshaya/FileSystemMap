@@ -16,16 +16,28 @@
 
 package org.ot.fmmap;
 
-import com.sun.nio.file.SensitivityWatchEventModifier;
-
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.*;
-import java.util.*;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.StandardWatchEventKinds;
+import java.nio.file.WatchEvent;
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import com.sun.nio.file.SensitivityWatchEventModifier;
 
 /**
  * A {@link Map} implementation that stores each entry as a file in a
@@ -249,8 +261,7 @@ public class FileSystemMap implements Map<String, String> {
     private class FPMWatcher extends Thread{
         @Override
         public void run(){
-            try {
-                WatchService watcher = FileSystems.getDefault().newWatchService();
+			try (WatchService watcher = FileSystems.getDefault().newWatchService()) {
                 dirPath.register(watcher, new WatchEvent.Kind[]{
                                 StandardWatchEventKinds.ENTRY_CREATE,
                                 StandardWatchEventKinds.ENTRY_DELETE,
