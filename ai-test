@@ -11,32 +11,42 @@
         .bar-btn { padding: 6px 12px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; font-weight: bold; background: #f8f9fa; font-size: 11px; }
         .save-btn { background: #2c3e50; color: white; border: none; }
         .reset-btn { background: #dc3545; color: white; border: none; }
+        
         #instructions { position: absolute; bottom: 20px; left: 20px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 8px; font-size: 12px; border-left: 5px solid #007bff; box-shadow: 0 4px 10px rgba(0,0,0,0.1); pointer-events: none; z-index: 100; }
-        #instructions b { color: #007bff; }
+        #canvas { width: 100vw; height: 100vh; display: block; touch-action: none; background: #ffffff; cursor: grab; }
+        #canvas:active { cursor: grabbing; }
+        .node-rect { cursor: grab; stroke-width: 2; rx: 8; transition: stroke 0.2s; }
+        .link-visual { stroke-width: 2.5; fill: none; pointer-events: none; }
+        .link-hitbox { stroke-width: 15; fill: none; stroke: transparent; cursor: pointer; }
+        .text-main { font-size: 14px; font-weight: bold; fill: #000; font-family: monospace; text-anchor: middle; pointer-events: none; }
+        .text-sub { font-size: 11px; font-weight: normal; fill: #444; font-family: sans-serif; text-anchor: middle; pointer-events: none; }
+
+        #context-menu { position: absolute; display: none; background: white; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); padding: 15px; width: 280px; z-index: 1000; border: 1px solid #ddd; }
+        .menu-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+        .btn-icon { background: none; border: none; font-size: 18px; cursor: pointer; padding: 4px; border-radius: 4px; }
+        .trash-btn { color: #dc3545; }
+        .check-btn { color: #28a745; font-size: 20px; }
+
         .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
         .modal-content { background: white; padding: 25px; border-radius: 12px; width: 350px; }
         .form-group { margin-bottom: 12px; }
         .form-group label { display: block; font-size: 10px; font-weight: bold; color: #666; margin-bottom: 4px; text-transform: uppercase; }
         .form-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        #canvas { width: 100vw; height: 100vh; display: block; touch-action: none; background: #ffffff; }
-        .node-rect { cursor: grab; stroke-width: 2.5; rx: 8; transition: stroke 0.2s; }
-        .link { stroke-width: 4; fill: none; cursor: pointer; pointer-events: stroke; }
-        .text-main { font-size: 14px; font-weight: bold; fill: #000; font-family: monospace; text-anchor: middle; pointer-events: none; }
-        .text-sub { font-size: 11px; font-weight: normal; fill: #444; font-family: sans-serif; text-anchor: middle; pointer-events: none; }
-        #context-menu { position: absolute; display: none; background: white; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); padding: 15px; width: 280px; z-index: 1000; border: 1px solid #ddd; }
-        .menu-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .close-x { cursor: pointer; font-size: 20px; color: #dc3545; font-weight: bold; border: none; background: none; }
-        .accept-tick { cursor: pointer; font-size: 20px; color: #28a745; font-weight: bold; border: none; background: none; }
-        .color-selector { display: flex; align-items: center; gap: 8px; margin-top: 5px; flex-wrap: wrap; }
-        .pastel-swatch { width: 24px; height: 24px; border-radius: 4px; cursor: pointer; border: 1px solid rgba(0,0,0,0.1); }
+        .color-selector { display: flex; align-items: center; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
+        .pastel-swatch { width: 26px; height: 26px; border-radius: 4px; cursor: pointer; border: 1px solid rgba(0,0,0,0.15); }
+        .control-label { font-size: 10px; font-weight: bold; color: #555; display: flex; align-items: center; gap: 4px; }
     </style>
 </head>
 <body>
 
 <div id="create-bar"><button class="add-btn" onclick="openCreateModal()">➕ Add Artifact</button></div>
 <div id="top-bar">
-    <button class="bar-btn" onclick="toggleGrid()">🌐 Grid</button>
-    <label style="font-size:10px;"><input type="checkbox" id="snapToggle" checked> SNAP</label>
+    <button class="bar-btn" onclick="undo()">↩️ Undo</button>
+    <div style="display:flex; align-items:center; gap:8px; border-left:1px solid #eee; padding-left:10px;">
+        <span class="control-label">GRID</span>
+        <input type="range" id="gridOpacity" min="0" max="1" step="0.1" value="0.4" oninput="updateGridOpacity(this.value)" style="width:60px;">
+        <label class="control-label"><input type="checkbox" id="snapToggle"> SNAP</label>
+    </div>
     <button class="bar-btn save-btn" onclick="saveAs()">💾 Save</button>
     <button class="bar-btn" onclick="openProjectManager()">📂 Projects</button>
     <button class="bar-btn" onclick="exportToFile()">📤 Export JSON</button>
@@ -45,63 +55,84 @@
 </div>
 
 <div id="instructions">
-    <b>Shift + Click</b>: Select 1st box, then 2nd to link<br>
-    <b>Right Click</b>: Edit (Propagates color) | <b>Ctrl + Click</b>: Open URL<br>
-    <b>Drag</b>: Move | <b>Import</b>: Load .json architectures
+    <b>Canvas Drag</b>: Pan | <b>Shift + Click</b>: Link | <b>Right Click</b>: Edit<br>
+    <b>Enter</b>: Save/Create | <b>Ctrl + Z</b>: Undo
 </div>
 
 <div id="context-menu">
     <div class="menu-header">
-        <button class="accept-tick" onclick="commitChanges()">✔</button>
-        <span style="font-size:10px; font-weight:bold; color:#888;">EDIT ELEMENT</span>
-        <button class="close-x" onclick="hideMenu()">✖</button>
+        <button class="btn-icon check-btn" onclick="commitChanges()">✔</button>
+        <span id="menu-title" style="font-size:10px; font-weight:bold; color:#888;">EDIT</span>
+        <div style="display:flex; gap:12px;">
+            <button class="btn-icon trash-btn" onclick="deleteItem()">🗑️</button>
+            <button class="btn-icon" onclick="hideMenu()">✖</button>
+        </div>
     </div>
     <div id="node-edit-fields">
-        <div class="form-group"><label>Artifact ID</label><input type="text" id="edit-name" class="form-input" onkeydown="handleMenuKey(event)"></div>
-        <div class="form-group"><label>Secondary Info</label><input type="text" id="edit-sub" class="form-input" onkeydown="handleMenuKey(event)"></div>
-        <div class="form-group"><label>URL</label><input type="text" id="edit-url" class="form-input" onkeydown="handleMenuKey(event)"></div>
+        <div class="form-group"><label>Artifact ID</label><input type="text" id="edit-name" class="form-input"></div>
+        <div class="form-group"><label>Secondary Info</label><input type="text" id="edit-sub" class="form-input"></div>
+        <div class="form-group"><label>URL</label><input type="text" id="edit-url" class="form-input"></div>
     </div>
-    <div class="form-group"><label>Color</label><div class="color-selector" id="edit-palette"><input type="color" id="edit-color"></div></div>
-    <div id="link-edit-fields" style="display:none; margin-bottom:10px;">
+    <div class="form-group">
+        <label>Color</label>
+        <div class="color-selector" id="edit-palette"><input type="color" id="edit-color" style="width:30px; height:30px; padding:0; border:none; background:none;"></div>
+    </div>
+    <div id="link-edit-fields" style="display:none;">
         <label>Line Style</label>
-        <div style="display:flex; gap:5px;">
+        <div style="display:flex; gap:5px; margin-top:5px;">
             <button class="bar-btn" onclick="setLineStyle('solid')">Solid</button>
             <button class="bar-btn" onclick="setLineStyle('dashed')">Dashed</button>
             <button class="bar-btn" onclick="setLineStyle('dotted')">Dotted</button>
         </div>
     </div>
-    <button class="bar-btn" style="width:100%; background:#dc3545; color:white; border:none; margin-top:10px;" onclick="deleteItem()">Delete Item</button>
 </div>
 
 <div id="create-modal" class="modal">
     <div class="modal-content">
         <h3 style="margin-top:0">New Artifact</h3>
-        <div class="form-group"><label>Artifact ID</label><input type="text" id="new-name" class="form-input" onkeydown="handleCreateKey(event)"></div>
-        <div class="form-group"><label>Secondary Info</label><input type="text" id="new-sub" class="form-input" onkeydown="handleCreateKey(event)"></div>
-        <div class="form-group"><label>Reference URL</label><input type="text" id="new-url" class="form-input" onkeydown="handleCreateKey(event)"></div>
-        <div class="form-group"><label>Color</label><div class="color-selector" id="create-palette"><input type="color" id="new-color" value="#FFFFFF"></div></div>
-        <div style="display:flex; gap:10px; margin-top:20px;"><button class="bar-btn save-btn" style="flex:1; padding:10px;" onclick="createNewNode()">Create</button><button class="bar-btn" style="flex:1;" onclick="closeModal('create-modal')">Cancel</button></div>
+        <div class="form-group"><label>Artifact ID</label><input type="text" id="new-name" class="form-input create-field"></div>
+        <div class="form-group"><label>Secondary Info</label><input type="text" id="new-sub" class="form-input create-field"></div>
+        <div class="form-group"><label>Reference URL</label><input type="text" id="new-url" class="form-input create-field"></div>
+        <div class="form-group">
+            <label>Color</label>
+            <div class="color-selector" id="create-palette"><input type="color" id="new-color" value="#FFFFFF" style="width:30px; height:30px; padding:0; border:none; background:none;"></div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="bar-btn save-btn" style="flex:1; padding:10px;" onclick="createNewNode()">Create</button>
+            <button class="bar-btn" style="flex:1;" onclick="closeModal('create-modal')">Cancel</button>
+        </div>
     </div>
 </div>
 
-<div id="project-modal" class="modal">
-    <div class="modal-content"><button onclick="closeModal('project-modal')" class="close-x">&times;</button><h3>Projects</h3><div id="project-list"></div></div>
-</div>
-
 <svg id="canvas">
-    <defs><pattern id="gridPattern" width="40" height="40" patternUnits="userSpaceOnUse"><path id="gridPath" d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(0,0,0,0.2)" stroke-width="1"/></pattern></defs>
-    <rect id="grid-bg" width="100%" height="100%" fill="url(#gridPattern)" />
-    <defs id="marker-defs"></defs>
-    <g id="links-layer"></g>
-    <g id="nodes-layer"></g>
+    <g id="viewport-group">
+        <defs><pattern id="gridPattern" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(0,0,0,1)" stroke-width="1.5"/></pattern></defs>
+        <rect id="grid-bg" x="-20000" y="-20000" width="40000" height="40000" fill="url(#gridPattern)" style="opacity: 0.4;" />
+        <defs id="marker-defs"></defs>
+        <g id="links-layer"></g>
+        <g id="nodes-layer"></g>
+    </g>
 </svg>
+<div id="project-modal" class="modal"><div class="modal-content"><button onclick="closeModal('project-modal')" style="background:none; border:none; float:right; cursor:pointer;">✖</button><h3>Projects</h3><div id="project-list"></div></div></div>
 <input type="file" id="importFile" style="display:none" onchange="importFromFile(event)">
 
 <script>
-    const svg = document.getElementById('canvas'), nodesLayer = document.getElementById('nodes-layer'), linksLayer = document.getElementById('links-layer'), menu = document.getElementById('context-menu'), measurer = document.createElement('canvas').getContext("2d");
-    let nodes = [], links = [], dragNode = null, selectedNodeId = null, menuTarget = null, showGrid = true;
-    const pastels = ['#FFFFFF', '#FFD1DC', '#FFECB3', '#DCEDC8', '#B3E5FC', '#E1BEE7'];
+    const svg = document.getElementById('canvas'), viewport = document.getElementById('viewport-group'), nodesLayer = document.getElementById('nodes-layer'), linksLayer = document.getElementById('links-layer'), menu = document.getElementById('context-menu'), measurer = document.createElement('canvas').getContext("2d");
+    let nodes = [], links = [], dragNode = null, selectedNodeId = null, menuTarget = null, isPanning = false, panX = 0, panY = 0, startX = 0, startY = 0, history = [];
+    const pastels = ['#FFFFFF', '#FFB3BA', '#FFFFBA', '#BAFFC9', '#BAE1FF', '#E0BBE4', '#FFDFBA', '#B2F7EF'];
 
+    function saveState() { history.push(JSON.stringify({ nodes, links })); if (history.length > 50) history.shift(); }
+    function undo() { if (history.length > 0) { const last = JSON.parse(history.pop()); nodes = last.nodes; links = last.links; updateWidths(); render(); } }
+
+    window.addEventListener('keydown', (e) => { 
+        if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
+        if (e.key === 'Enter') {
+            if (menu.style.display === 'block') { e.preventDefault(); commitChanges(); }
+            else if (document.getElementById('create-modal').style.display === 'flex') { e.preventDefault(); createNewNode(); }
+        }
+    });
+
+    function updateGridOpacity(val) { document.getElementById('grid-bg').style.opacity = val; }
     function setupPalettes() {
         ['create-palette', 'edit-palette'].forEach(id => {
             const container = document.getElementById(id);
@@ -114,29 +145,27 @@
     }
     setupPalettes();
 
-    function handleMenuKey(e) { if (e.key === "Enter") commitChanges(); }
-    function handleCreateKey(e) { if (e.key === "Enter") createNewNode(); }
     function openCreateModal() { document.getElementById('create-modal').style.display = 'flex'; document.getElementById('new-name').focus(); }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-    function resetCanvas() { if(confirm("Clear current project?")) { nodes = []; links = []; selectedNodeId = null; render(); } }
 
     function createNewNode() {
-        nodes.push({ id: Date.now(), x: 160, y: 160, name: document.getElementById('new-name').value || 'New', sub: document.getElementById('new-sub').value, url: document.getElementById('new-url').value, color: document.getElementById('new-color').value, width: 140 });
+        saveState();
+        nodes.push({ id: Date.now(), x: 100 - panX, y: 100 - panY, name: document.getElementById('new-name').value || 'New', sub: document.getElementById('new-sub').value, url: document.getElementById('new-url').value, color: document.getElementById('new-color').value, width: 140 });
         updateWidths(); render(); closeModal('create-modal');
+        document.querySelectorAll('.create-field').forEach(f => f.value = '');
     }
 
     function updateWidths() { nodes.forEach(n => { measurer.font = "bold 14px monospace"; n.width = Math.max(140, measurer.measureText(n.name).width + 40); }); }
-    function toggleGrid() { showGrid = !showGrid; document.getElementById('grid-bg').style.display = showGrid ? 'block' : 'none'; }
+    function updateViewport() { viewport.setAttribute('transform', `translate(${panX}, ${panY})`); }
 
-    function propagateColor(sourceNode) {
-        const queue = [sourceNode], visited = new Set();
-        while (queue.length > 0) {
-            const current = queue.shift(); visited.add(current.id);
-            links.filter(l => l.source === current.id).forEach(link => {
-                const child = nodes.find(n => n.id === link.target);
-                if (child && !visited.has(child.id)) { child.color = sourceNode.color; queue.push(child); }
-            });
-        }
+    function getEdgePoint(src, target) {
+        const sx = src.x + src.width / 2, sy = src.y + 35;
+        const tx = target.x + target.width / 2, ty = target.y + 35;
+        const dx = sx - tx, dy = sy - ty;
+        const absDx = Math.abs(dx), absDy = Math.abs(dy);
+        const w = target.width / 2, h = 35;
+        if (h * absDx > w * absDy) return { x: tx + (dx > 0 ? w : -w), y: ty + dy * w / absDx };
+        else return { x: tx + dx * h / absDy, y: ty + (dy > 0 ? h : -h) };
     }
 
     function render() {
@@ -144,27 +173,29 @@
         links.forEach(link => {
             const s = nodes.find(n => n.id === link.source), t = nodes.find(n => n.id === link.target);
             if (!s || !t) return;
-            const linkCol = link.color || "#000000";
-            const mid = `arrow-${linkCol.replace('#','')}`;
+            const linkCol = link.color || "#000000", mid = `arrow-${linkCol.replace('#','')}`;
             if (!document.getElementById(mid)) {
                 const m = document.createElementNS("http://www.w3.org/2000/svg", "marker");
                 m.id = mid; m.setAttribute("viewBox", "0 0 10 10"); m.setAttribute("refX", "9"); m.setAttribute("refY", "5");
-                m.setAttribute("markerWidth", "5"); m.setAttribute("markerHeight", "5"); m.setAttribute("orient", "auto");
+                m.setAttribute("markerWidth", "6"); m.setAttribute("markerHeight", "6"); m.setAttribute("orient", "auto-start-reverse");
                 const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
                 p.setAttribute("d", "M 0 0 L 10 5 L 0 10 z"); p.setAttribute("fill", linkCol);
                 m.appendChild(p); document.getElementById('marker-defs').appendChild(m);
             }
-            const cx = t.x + t.width/2, cy = t.y + 35, dx = (s.x + s.width/2) - cx, dy = (s.y + 35) - cy;
-            const absDx = Math.abs(dx), absDy = Math.abs(dy), halfW = t.width/2, halfH = 35;
-            const edge = (halfH * absDx > halfW * absDy) ? {x: cx + (dx>0?halfW:-halfW), y: cy + dy*halfW/absDx} : {x: cx + dx*halfH/absDy, y: cy + (dy>0?halfH:-halfH)};
-            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            path.setAttribute("d", `M ${s.x + s.width/2} ${s.y + 35} L ${edge.x} ${edge.y}`);
-            path.setAttribute("class", "link"); path.setAttribute("stroke", linkCol);
-            path.setAttribute("marker-end", `url(#${mid})`);
-            if (link.style === 'dashed') path.setAttribute("stroke-dasharray", "8,4");
-            if (link.style === 'dotted') path.setAttribute("stroke-dasharray", "2,4");
-            path.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); showMenu(e.clientX, e.clientY, link); };
-            linksLayer.appendChild(path);
+            const edge = getEdgePoint(s, t);
+            const pathData = `M ${s.x + s.width/2} ${s.y + 35} L ${edge.x} ${edge.y}`;
+            
+            const visual = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            visual.setAttribute("d", pathData); visual.setAttribute("class", "link-visual"); visual.setAttribute("stroke", linkCol);
+            visual.setAttribute("marker-end", `url(#${mid})`);
+            if (link.style === 'dashed') visual.setAttribute("stroke-dasharray", "8,4");
+            if (link.style === 'dotted') visual.setAttribute("stroke-dasharray", "2,4");
+            
+            const hitbox = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            hitbox.setAttribute("d", pathData); hitbox.setAttribute("class", "link-hitbox");
+            hitbox.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); showMenu(e.clientX, e.clientY, link); };
+            
+            linksLayer.appendChild(visual); linksLayer.appendChild(hitbox);
         });
 
         nodes.forEach(node => {
@@ -174,20 +205,15 @@
             rect.setAttribute("width", node.width); rect.setAttribute("height", "70");
             rect.setAttribute("fill", node.color); rect.setAttribute("stroke", (selectedNodeId === node.id) ? "#007bff" : "#2c3e50");
             rect.setAttribute("class", "node-rect");
-            
             rect.onpointerdown = (e) => {
                 e.stopPropagation();
                 if (e.button === 0) {
                     if (e.shiftKey) {
-                        if (selectedNodeId === null) { selectedNodeId = node.id; } 
-                        else if (selectedNodeId !== node.id) {
-                            links.push({ id: Date.now(), source: selectedNodeId, target: node.id, color: "#000000", style: 'solid' });
-                            selectedNodeId = null;
-                        } else { selectedNodeId = null; }
+                        if (selectedNodeId === null) selectedNodeId = node.id;
+                        else if (selectedNodeId !== node.id) { saveState(); links.push({ id: Date.now(), source: selectedNodeId, target: node.id, color: "#000000", style: 'solid' }); selectedNodeId = null; }
                         render();
-                    } else if (e.ctrlKey) {
-                        if (node.url) window.open(node.url.startsWith('http') ? node.url : 'https://' + node.url, '_blank');
-                    } else { dragNode = node; }
+                    } else if (e.ctrlKey) { if (node.url) window.open(node.url.startsWith('http') ? node.url : 'https://' + node.url, '_blank'); }
+                    else { dragNode = node; }
                 }
             };
             rect.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); showMenu(e.clientX, e.clientY, node); };
@@ -202,94 +228,66 @@
         });
     }
 
+    svg.onpointerdown = (e) => { if (e.target === svg || e.target === document.getElementById('grid-bg')) { isPanning = true; startX = e.clientX - panX; startY = e.clientY - panY; } };
+    window.onpointermove = (e) => {
+        if (isPanning) { panX = e.clientX - startX; panY = e.clientY - startY; updateViewport(); }
+        else if (dragNode) {
+            dragNode.x = (e.clientX - panX) - (dragNode.width / 2); dragNode.y = (e.clientY - panY) - 35;
+            if(document.getElementById('snapToggle').checked) { dragNode.x = Math.round(dragNode.x/40)*40; dragNode.y = Math.round(dragNode.y/40)*40; }
+            render();
+        }
+    };
+    window.onpointerup = () => { if(dragNode) saveState(); dragNode = null; isPanning = false; };
+
     function showMenu(x, y, target) {
-        selectedNodeId = null; // CLEAR SHIFT-SELECT BORDER WHEN EDITING
-        render(); 
-        menuTarget = target;
+        selectedNodeId = null; render(); menuTarget = target;
         menu.style.display = 'block'; menu.style.left = x + 'px'; menu.style.top = y + 'px';
         const isNode = nodes.some(n => n.id === target.id);
         document.getElementById('node-edit-fields').style.display = isNode ? 'block' : 'none';
         document.getElementById('link-edit-fields').style.display = isNode ? 'none' : 'block';
-        if (isNode) { 
-            document.getElementById('edit-name').value = target.name; 
-            document.getElementById('edit-sub').value = target.sub || ''; 
-            document.getElementById('edit-url').value = target.url || ''; 
-        }
+        if (isNode) { document.getElementById('edit-name').value = target.name; document.getElementById('edit-sub').value = target.sub || ''; document.getElementById('edit-url').value = target.url || ''; document.getElementById('edit-name').focus(); }
         document.getElementById('edit-color').value = target.color || "#000000";
-        if(isNode) setTimeout(()=>document.getElementById('edit-name').focus(), 10);
     }
 
     function hideMenu() { menu.style.display = 'none'; menuTarget = null; }
-
     function commitChanges() {
-        if (!menuTarget) return;
+        if (!menuTarget) return; saveState();
         const node = nodes.find(n => n.id === menuTarget.id);
         if (node) {
-            node.name = document.getElementById('edit-name').value;
-            node.sub = document.getElementById('edit-sub').value;
-            node.url = document.getElementById('edit-url').value;
-            node.color = document.getElementById('edit-color').value;
-            updateWidths(); propagateColor(node);
-        } else {
-            const link = links.find(l => l.id === menuTarget.id);
-            if (link) link.color = document.getElementById('edit-color').value;
-        }
+            node.name = document.getElementById('edit-name').value; node.sub = document.getElementById('edit-sub').value;
+            node.url = document.getElementById('edit-url').value; node.color = document.getElementById('edit-color').value;
+            updateWidths();
+            const q = [node], v = new Set();
+            while(q.length > 0) {
+                const c = q.shift(); v.add(c.id);
+                links.filter(l => l.source === c.id).forEach(l => {
+                    const child = nodes.find(n => n.id === l.target);
+                    if(child && !v.has(child.id)) { child.color = node.color; q.push(child); }
+                });
+            }
+        } else { const link = links.find(l => l.id === menuTarget.id); if (link) link.color = document.getElementById('edit-color').value; }
         render(); hideMenu();
     }
 
+    function deleteItem() { if(!confirm("Delete?")) return; saveState(); nodes = nodes.filter(n => n.id !== menuTarget.id); links = links.filter(l => l.id !== menuTarget.id && l.source !== menuTarget.id && l.target !== menuTarget.id); hideMenu(); render(); }
     function setLineStyle(s) { if(menuTarget) { menuTarget.style = s; commitChanges(); } }
-    function deleteItem() {
-        nodes = nodes.filter(n => n.id !== menuTarget.id);
-        links = links.filter(l => l.id !== menuTarget.id && l.source !== menuTarget.id && l.target !== menuTarget.id);
-        hideMenu(); render();
-    }
-
-    window.onpointermove = (e) => { if (dragNode) { dragNode.x = e.clientX - (dragNode.width / 2); dragNode.y = e.clientY - 35; if(document.getElementById('snapToggle').checked) { dragNode.x = Math.round(dragNode.x/40)*40; dragNode.y = Math.round(dragNode.y/40)*40; } render(); } };
-    window.onpointerup = () => dragNode = null;
-    window.onclick = (e) => { if (menu.style.display === 'block' && !menu.contains(e.target)) hideMenu(); };
-    window.oncontextmenu = (e) => e.preventDefault();
-
+    function resetCanvas() { if(confirm("Clear?")) { saveState(); nodes = []; links = []; panX = 0; panY = 0; updateViewport(); render(); } }
     function saveAs() { const name = prompt("Project Name:"); if (name) { const p = JSON.parse(localStorage.getItem('mavenProjects') || '{}'); p[name] = { nodes, links }; localStorage.setItem('mavenProjects', JSON.stringify(p)); } }
     function openProjectManager() {
         const list = document.getElementById('project-list'), projects = JSON.parse(localStorage.getItem('mavenProjects') || '{}');
         list.innerHTML = '';
         Object.keys(projects).forEach(name => {
-            const div = document.createElement('div'); div.style = "display:flex; justify-content:space-between; margin-bottom:5px;";
-            div.innerHTML = `<span>${name}</span><div><button class="bar-btn" onclick="loadProject('${name}')">Load</button><button class="bar-btn" style="color:red" onclick="deleteProject('${name}')">Del</button></div>`;
+            const div = document.createElement('div'); div.style = "display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #eee; padding:5px;";
+            div.innerHTML = `<span>${name}</span><div><button class="bar-btn" onclick="loadProject('${name}')">Load</button> <button class="bar-btn" style="color:red" onclick="deleteProject('${name}')">Del</button></div>`;
             list.appendChild(div);
         });
         document.getElementById('project-modal').style.display = 'flex';
     }
-    function loadProject(name) { const p = JSON.parse(localStorage.getItem('mavenProjects') || '{}')[name]; nodes = p.nodes; links = p.links; render(); closeModal('project-modal'); }
-    function deleteProject(name) { const p = JSON.parse(localStorage.getItem('mavenProjects') || '{}'); delete p[name]; localStorage.setItem('mavenProjects', JSON.stringify(p)); openProjectManager(); }
-    
-    function exportToFile() { 
-        let filename = prompt("Enter a filename:", "maven_architecture");
-        if (!filename) return; 
-        if (!filename.endsWith(".json")) filename += ".json";
-        const blob = new Blob([JSON.stringify({ nodes, links }, null, 2)], { type: "application/json" }); 
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); 
-    }
-
-    // FIX FOR IMPORT AFTER RESET
-    function triggerImport() { 
-        const fileInput = document.getElementById('importFile');
-        fileInput.value = ''; // Clear selection to allow re-importing same file after reset
-        fileInput.click(); 
-    }
-
-    function importFromFile(e) { 
-        if (!e.target.files.length) return;
-        const reader = new FileReader(); 
-        reader.onload = (ev) => { 
-            try {
-                const data = JSON.parse(ev.target.result); 
-                nodes = data.nodes || []; links = data.links || []; 
-                updateWidths(); render(); 
-            } catch(err) { alert("Invalid JSON."); }
-        }; 
-        reader.readAsText(e.target.files[0]); 
-    }
+    function loadProject(name) { saveState(); const p = JSON.parse(localStorage.getItem('mavenProjects') || '{}')[name]; nodes = p.nodes; links = p.links; panX = 0; panY = 0; updateViewport(); render(); closeModal('project-modal'); }
+    function deleteProject(name) { if(confirm("Delete?")) { const p = JSON.parse(localStorage.getItem('mavenProjects') || '{}'); delete p[name]; localStorage.setItem('mavenProjects', JSON.stringify(p)); openProjectManager(); } }
+    function exportToFile() { let f = prompt("Filename:", "maven_architecture"); if(!f) return; if(!f.endsWith(".json")) f += ".json"; const blob = new Blob([JSON.stringify({ nodes, links }, null, 2)], { type: "application/json" }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = f; a.click(); }
+    function triggerImport() { document.getElementById('importFile').click(); }
+    function importFromFile(e) { if(!e.target.files.length) return; const reader = new FileReader(); reader.onload = (ev) => { try { saveState(); const d = JSON.parse(ev.target.result); nodes = d.nodes || []; links = d.links || []; updateWidths(); render(); } catch(err) { alert("Error"); } }; reader.readAsText(e.target.files[0]); }
 </script>
 </body>
 </html>
